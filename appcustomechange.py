@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
 
-finviz_url = "https://elite.finviz.com/export/screener?v=111&f=fa_div_pos,sec_technology&auth=9093f418-3ffd-451f-886c-2f092b5e79ea"
+finviz_url = "ENTER YOUR FINVIZ URL HERE" 
 
 custom_change_values = {}
 date_range_change_values = {}
