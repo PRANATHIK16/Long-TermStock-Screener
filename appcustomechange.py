@@ -14,16 +14,30 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
 
-finviz_url = "ENTER YOUR FINVIZ URL HERE" 
-
+finviz_url = "ENTER FINVIZ URL HERE" 
 custom_change_values = {}
 date_range_change_values = {}
-sentiment_score_cache = {}   # ticker → {"score": float, "label": str}
-monthly_perf_cache = {}      # ticker → float (1-month % change)
+sentiment_score_cache = {}
+longterm_score_cache = {}
+monthly_perf_cache = {}
+
+# ── Keyword sets (must be defined before score_ticker_sentiment) ──────────────
+_BULLISH = {"beat","beats","surpasses","record","upgrade","upgraded","raises","raised",
+            "growth","strong","profit","profits","gains","bullish","buy","positive",
+            "outperform","rally","surge","soars","soar","accelerating","acquisition",
+            "partnership","innovation","breakthrough","dividend","upside","expands",
+            "expansion","approval","approved","wins","win"}
+
+_BEARISH = {"miss","misses","missed","disappoints","disappointing","downgrade","downgraded",
+            "cut","cuts","loss","losses","bearish","sell","negative","underperform",
+            "decline","declines","drops","falls","fell","slump","warning","warns",
+            "risk","risks","lawsuit","fraud","investigation","layoffs","recall",
+            "debt","default","bankruptcy","concern","concerns","worry","worries",
+            "weak","weakness","plunge","plunges"}
 
 
 def score_ticker_sentiment(ticker):
-    """Return a 0-100 sentiment score and label from recent news headlines."""
+    """Short-term: score 0-100 based on last 20 news headlines."""
     try:
         news_items = yf.Ticker(ticker).news[:20]
     except:
@@ -40,16 +54,88 @@ def score_ticker_sentiment(ticker):
         if b > r: bull += 1
         elif r > b: bear += 1
     total = bull + bear
-    if total == 0:
-        score = 50.0
-    else:
-        score = round((bull / total) * 100, 1)
+    score = round((bull / total) * 100, 1) if total > 0 else 50.0
     if score >= 70:   label = "🟢 Bullish"
     elif score >= 55: label = "🟡 Leaning Bull"
     elif score >= 45: label = "⚪ Neutral"
     elif score >= 30: label = "🟠 Leaning Bear"
     else:             label = "🔴 Bearish"
     return {"score": score, "label": label}
+
+
+def score_ticker_longterm(ticker):
+    """
+    Long-term sentiment: 0-100 composite of:
+      - Price vs 200-day SMA (40%)
+      - 12-month price return (30%)
+      - Analyst recommendation (20%)
+      - EPS growth trend (10%)
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        info  = stock.info or {}
+        scores = []
+
+        # 1. Price vs 200-day SMA (above = bullish)
+        try:
+            hist = stock.history(period='1y', interval='1d')
+            if len(hist) >= 50:
+                sma200 = hist['Close'].rolling(200).mean().iloc[-1]
+                current = hist['Close'].iloc[-1]
+                if not pd.isna(sma200) and sma200 > 0:
+                    ratio = current / sma200
+                    # ratio > 1 = above SMA (good), < 1 = below (bad)
+                    sma_score = min(100, max(0, 50 + (ratio - 1) * 200))
+                    scores.append(('sma', sma_score, 0.40))
+        except:
+            pass
+
+        # 2. 12-month price return
+        try:
+            if len(hist) >= 2:
+                ret_12m = ((hist['Close'].iloc[-1] - hist['Open'].iloc[0]) /
+                           hist['Open'].iloc[0]) * 100
+                # Map -50% → 0, 0% → 50, +100%+ → 100
+                ret_score = min(100, max(0, 50 + ret_12m * 0.5))
+                scores.append(('return', ret_score, 0.30))
+        except:
+            pass
+
+        # 3. Analyst recommendation (1=Strong Buy → 5=Strong Sell)
+        try:
+            rec = info.get('recommendationMean')
+            if rec:
+                # 1 → 100, 3 → 50, 5 → 0
+                rec_score = min(100, max(0, (5 - rec) / 4 * 100))
+                scores.append(('analyst', rec_score, 0.20))
+        except:
+            pass
+
+        # 4. EPS growth
+        try:
+            eps_growth = info.get('earningsGrowth')
+            if eps_growth is not None:
+                # -50% → 0, 0% → 50, +50%+ → 100
+                eps_score = min(100, max(0, 50 + float(eps_growth) * 100))
+                scores.append(('eps', eps_score, 0.10))
+        except:
+            pass
+
+        if not scores:
+            return {"score": 50.0, "label": "Neutral"}
+
+        total_weight = sum(w for _, _, w in scores)
+        weighted = sum(s * w for _, s, w in scores) / total_weight
+        final = round(weighted, 1)
+
+        if final >= 70:   label = "🟢 Strong"
+        elif final >= 55: label = "🟡 Positive"
+        elif final >= 45: label = "⚪ Neutral"
+        elif final >= 30: label = "🟠 Weak"
+        else:             label = "🔴 Poor"
+        return {"score": final, "label": label}
+    except:
+        return {"score": 50.0, "label": "Neutral"}
 
 
 def get_monthly_perf(ticker):
@@ -108,9 +194,10 @@ def fetch_finviz_data():
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         # Initialize Change column
         df['Change'] = 0.0
-        # Add sentiment and monthly perf columns (pre-populated from cache if available)
         df['Sentiment Score'] = df['Ticker'].map(
             lambda t: sentiment_score_cache.get(t, {}).get('score', None))
+        df['LT Sentiment Score'] = df['Ticker'].map(
+            lambda t: longterm_score_cache.get(t, {}).get('score', None))
         df = df.reset_index(drop=True)
         # Format Volume columns for readability
         for vcol in ['Volume', 'Avg Volume']:
@@ -193,20 +280,6 @@ def update_date_range_changes(df, start_date, end_date, max_stocks=50):
 
 
 # ─── Sentiment ────────────────────────────────────────────────────────────────
-
-_BULLISH = {"beat","beats","surpasses","record","upgrade","upgraded","raises","raised",
-            "growth","strong","profit","profits","gains","bullish","buy","positive",
-            "outperform","rally","surge","soars","soar","accelerating","acquisition",
-            "partnership","innovation","breakthrough","dividend","upside","expands",
-            "expansion","approval","approved","wins","win"}
-
-_BEARISH = {"miss","misses","missed","disappoints","disappointing","downgrade","downgraded",
-            "cut","cuts","loss","losses","bearish","sell","negative","underperform",
-            "decline","declines","drops","falls","fell","slump","warning","warns",
-            "risk","risks","lawsuit","fraud","investigation","layoffs","recall",
-            "debt","default","bankruptcy","concern","concerns","worry","worries",
-            "weak","weakness","plunge","plunges"}
-
 
 def analyze_news_sentiment(news_items):
     if not news_items:
@@ -801,11 +874,11 @@ def main_page():
 
             # Row 4 — Calculate Sentiment/Monthly button
             html.Div([
-                html.Button("Calculate Sentiment & 1M Perf", id="calc-sentiment-button", n_clicks=0,
+                html.Button("Calculate Sentiment Score", id="calc-sentiment-button", n_clicks=0,
                             style={'backgroundColor':'#7c3aed','color':'white',
                                    'padding':'8px 16px','borderRadius':'5px','fontWeight':'600',
                                    'marginRight':'10px'}),
-                html.Span("(Fetches news + 1-month price data for each ticker — takes ~30s per 20 stocks)",
+                html.Span("(Fetches recent news headlines per ticker and scores 0–100 — runs in parallel)",
                           style={'fontSize':'12px','color':'#666'}),
             ], style={'marginBottom':'12px'}),
             html.Div(id='sentiment-calc-status',
@@ -923,6 +996,14 @@ def update_main_table(n_clicks, refresh_value, sort_by, sort_order,
         return [], (refresh_value*1000 if refresh_value > 0 else 0), "No data", [], "", ""
 
     df['Change'] = df['Ticker'].map(date_range_change_values).fillna(0.0)
+    if sentiment_score_cache:
+        df['Sentiment Score'] = df['Ticker'].map(
+            lambda t: sentiment_score_cache.get(t, {}).get('score', None))
+        df['Sentiment'] = df['Ticker'].map(
+            lambda t: sentiment_score_cache.get(t, {}).get('label', ''))
+    if longterm_score_cache:
+        df['LT Sentiment Score'] = df['Ticker'].map(
+            lambda t: longterm_score_cache.get(t, {}).get('score', None))
 
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else ''
@@ -940,18 +1021,38 @@ def update_main_table(n_clicks, refresh_value, sort_by, sort_order,
     # Calculate news sentiment in parallel
     if trigger_id == 'calc-sentiment-button':
         tickers = df['Ticker'].dropna().head(date_range_stocks).tolist()
-        print(f"Scoring sentiment for {len(tickers)} tickers in parallel...")
+        print(f"Scoring ST+LT sentiment for {len(tickers)} tickers in parallel...")
 
         def _score(ticker):
             sentiment_score_cache[ticker] = score_ticker_sentiment(ticker)
+            longterm_score_cache[ticker]  = score_ticker_longterm(ticker)
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = {executor.submit(_score, t): t for t in tickers}
             for future in as_completed(futures):
-                pass  # results go straight into cache
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Sentiment error: {e}")
 
         df['Sentiment Score'] = df['Ticker'].map(
             lambda t: sentiment_score_cache.get(t, {}).get('score', None))
+        df['Sentiment'] = df['Ticker'].map(
+            lambda t: sentiment_score_cache.get(t, {}).get('label', ''))
+        df['LT Sentiment Score'] = df['Ticker'].map(
+            lambda t: longterm_score_cache.get(t, {}).get('score', None))
+
+        # Rank both — #1 = best
+        for col, cache in [('Sentiment Rank', sentiment_score_cache),
+                           ('LT Sentiment Rank', longterm_score_cache)]:
+            score_col = 'Sentiment Score' if 'LT' not in col else 'LT Sentiment Score'
+            scored = df[df[score_col].notna()].copy()
+            if not scored.empty:
+                scored[col] = scored[score_col].rank(ascending=False, method='min').astype(int)
+                df = df.merge(scored[['Ticker', col]], on='Ticker', how='left')
+
+        sort_by = 'Sentiment Score'
+        sort_order = 'desc'
 
     total_before = len(df)
 
@@ -1275,7 +1376,7 @@ def clear_filters(_):
     prevent_initial_call=True
 )
 def sentiment_status(n_clicks, n_stocks):
-    return f"⏳ Calculating sentiment & 1M perf for up to {n_stocks} stocks… check the Sentiment and 1M Perf % columns when done."
+    return f"⏳ Scoring sentiment for up to {n_stocks} stocks in parallel… table will update when done."
 
 
 # ─── Layout ───────────────────────────────────────────────────────────────────
