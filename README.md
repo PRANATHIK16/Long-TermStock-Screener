@@ -4,7 +4,7 @@ A stock screening and analysis dashboard built with Python and Dash. Pulls live 
 
 ---
 
-## What It Does
+## What It Does 
 
 ### Screener Table
 - Pulls your Finviz Elite screener export (any filters you set on Finviz carry over)
