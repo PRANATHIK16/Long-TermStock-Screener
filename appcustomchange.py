@@ -6,7 +6,7 @@ scores news sentiment (short-term) and price/analyst momentum (long-term),
 and shows a full detail view with chart and metrics for each ticker.
 
 Setup:
-  1. Set your Finviz Elite export URL on line 22 (finviz_url).
+  1. Set your Finviz Elite export URL on line 29 (finviz_url).
   2. pip install dash flask-caching pandas requests yfinance plotly numpy
   3. python "app custom change.py"
   4. Open http://127.0.0.1:8050
