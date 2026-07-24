@@ -5,7 +5,7 @@ import requests
 from io import StringIO
 from flask_caching import Cache
 import plotly.graph_objs as go
-import yfinance as yf
+import yfinance as yf 
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
