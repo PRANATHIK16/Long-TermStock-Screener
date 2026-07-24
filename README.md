@@ -135,8 +135,10 @@ http://127.0.0.1:8050
 
 ```
 Project-Stock/
-├── app custom change.py   # Main application — run this
-└── README.md              # This file
+├── MAIN.py
+├── README.md              # This file
+├── app details.py 
+└── app custom change.py   # Main application — run this
 ```
 
 ---
@@ -150,7 +152,3 @@ Project-Stock/
 - The app caches Finviz data for 10 minutes to reduce API calls
 
 ---
-
-## License
-
-MIT License — free to use and modify for personal or commercial projects.
