@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-finviz_url = "YOUR-FINVIZ-URL-HERE"
+finviz_url = "INSERT FINVIZ URL HERE" 
 # Replace with your Finviz Elite export URL, e.g.:
 # https://elite.finviz.com/export?v=111&f=sec_technology&auth=YOUR-KEY
 
@@ -176,9 +176,9 @@ def fetch_finviz_data():
     print(f"First 300 chars: {response.text[:300]}")
     if response.status_code != 200:
         return pd.DataFrame({"Error": [f"HTTP {response.status_code} — check your Finviz URL"]})
-    if not response.text.strip().startswith("Ticker"):
+    first_line = response.text.strip().split("\n", 1)[0]
+    if "Ticker" not in first_line or first_line.lstrip().startswith("<"):
         return pd.DataFrame({"Error": ["Got HTML instead of CSV — your Finviz auth token has expired. Get a new export URL from elite.finviz.com"]})
-
     try:
         df = pd.read_csv(StringIO(response.text))
         df.columns = df.columns.map(str)
