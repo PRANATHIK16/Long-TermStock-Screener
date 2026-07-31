@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 finviz_url = "INSERT FINVIZ URL HERE" 
 # Replace with your Finviz Elite export URL, e.g.:
-# https://elite.finviz.com/export?v=111&f=sec_technology&auth=YOUR-KEY
+# https://elite.finviz.com/export/screener?v=111&f=sec_technology&auth=YOUR-KEY
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
