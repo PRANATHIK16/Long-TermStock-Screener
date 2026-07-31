@@ -43,6 +43,12 @@ Both scores run in **parallel (20 workers)** and include:
 - Auto-sorts by Sentiment Score after calculation
 - Scores persist across refreshes within the same session
 
+ **Sentiment scores are all "Neutral" / 50**
+— this is usually expected behavior, not a bug. The sentiment scorer only counts headlines from a specific list of trusted wire services (PR Newswire, GlobeNewswire, Benzinga, Reuters, etc). Yahoo Finance's news feed pulls from a lot of other publishers too (Motley Fool, Zacks, Yahoo itself), and if none of a ticker's recent headlines happen to be from a trusted source, it just defaults to neutral. The app prints exactly what sources it found for each ticker to your terminal while it's scoring, so you can check that directly if scores look off.
+
+**Sentiment/momentum scoring is slow**
+— each ticker needs several separate calls to Yahoo Finance (news, price history, analyst data), and Yahoo will throttle you if you hit it too hard. Scoring runs in parallel already, but for a big list of stocks it's still going to take a bit. Lower the "# Stocks" slider if you just want a quick test.
+
 ### Filters
 All filters are dropdowns matching Finviz's style. Click **Apply Filters** to filter, **Clear Filters** to reset.
 
@@ -156,7 +162,6 @@ http://127.0.0.1:8050
 Project-Stock/
 ├── MAIN.py
 ├── README.md              # This file
-├── app details.py
 └── app custom change.py   # Main application — run this``` 
 ```
 
