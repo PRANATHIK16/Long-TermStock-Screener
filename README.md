@@ -1,4 +1,4 @@
-# Long-term Stock-Screener
+# Long-Term Stock-Screener
 
 A long-term stock screening and analysis dashboard built with Python and Dash. Pulls live data from **Finviz Elite** and **Yahoo Finance** to give you a research tool focused on long-term investing, sentiment analysis, and fundamental screening.
 
