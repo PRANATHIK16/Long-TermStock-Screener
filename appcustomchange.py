@@ -12,6 +12,7 @@ Setup:
   4. Open http://127.0.0.1:8050
 """
 
+import os
 import re
 import dash
 from dash import dcc, html, Input, Output, dash_table, State
@@ -1063,4 +1064,5 @@ def sentiment_status(n_clicks, n_stocks):
 app.layout = html.Div([html.Div(id='page-content', children=main_page())])
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    port = int(os.environ.get('PORT', 8050))
+    app.run_server(debug=False, host='0.0.0.0', port=port)

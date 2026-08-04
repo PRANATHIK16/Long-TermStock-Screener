@@ -1,0 +1,7 @@
+dash
+flask-caching
+pandas
+requests
+yfinance
+plotly
+numpy
