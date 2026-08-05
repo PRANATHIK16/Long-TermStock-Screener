@@ -161,8 +161,11 @@ http://127.0.0.1:8050
 ```
 Project-Stock/
 ├── MAIN.py
-├── README.md              # This file
-└── app custom change.py   # Main application — run this``` 
+├── README.md               # This file
+├── appcustomchange.py      # Main application — run this```
+├── railway.toml            # Railway deployment configuration
+├── requirements.txt        # Python dependencies installed by Railway/pip
+└── start.sh                # Startup script used by Railway
 ```
 
 ---
