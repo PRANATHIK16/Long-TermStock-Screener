@@ -27,7 +27,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-finviz_url = os.environ.get('FINVIZ_URL', 'INSERT FINVIZ URL HERE')
+import os
+
+finviz_url = os.environ.get("FINVIZ_URL")
 # Replace with your Finviz Elite export URL, e.g.:
 # https://elite.finviz.com/export/screener?v=111&f=sec_technology&auth=YOUR-KEY
 
