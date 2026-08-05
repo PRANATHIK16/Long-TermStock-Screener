@@ -726,7 +726,7 @@ def main_page():
             page_size=15,
             page_action='native',
             sort_action='native',
-            filter_action='native',
+          
         ),
 
         html.Div(id='detail-panel', style={'marginTop': '10px'}),
@@ -1007,8 +1007,16 @@ def update_main_table(n_clicks, refresh_value, sort_by, sort_order,
 
     count_msg = f"Showing {len(df)} of {total_before} stocks" if len(df) != total_before else ""
     records = df_out.to_dict('records')
-    return records, (refresh_value * 1000 if refresh_value > 0 else 0), "", records, count_msg, range_status
-
+    full_records = fetch_finviz_data().to_dict('records')
+    
+    return (
+        records,
+        (refresh_value * 1000 if refresh_value > 0 else 0),
+        "",
+        full_records,
+        count_msg,
+        range_status
+)
 
 @app.callback(
     Output('detail-panel', 'children'),
