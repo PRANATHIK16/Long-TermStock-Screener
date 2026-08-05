@@ -1061,7 +1061,18 @@ def sentiment_status(n_clicks, n_stocks):
 
 # ── App entry point ───────────────────────────────────────────────────────────
 
-app.layout = html.Div([html.Div(id='page-content', children=main_page())])
+app.layout = html.Div([html.Div(id='page-content')])
+
+
+@app.callback(
+    Output('page-content', 'children'),
+    Input('page-content', 'id'),
+)
+def render_page_content(_):
+    """Populate the page content on first render, deferring the Finviz fetch
+    until a client actually requests the page instead of at module load time."""
+    return main_page()
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
