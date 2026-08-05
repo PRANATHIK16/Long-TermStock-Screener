@@ -994,8 +994,9 @@ def update_main_table(n_clicks, refresh_value, sort_by, sort_order,
             elif f_insttrans == 'neg': df = df[it < 0]
             elif f_insttrans == 'vpos': df = df[it > 5]
             elif f_insttrans == 'vneg': df = df[it < -5]
+
     if df.empty:
-    return [], (refresh_value * 1000 if refresh_value > 0 else 0), "", [], "Showing 0 stocks", range_status
+        return [], (refresh_value * 1000 if refresh_value > 0 else 0), "", [], "Showing 0 stocks", range_status
     ascending = (sort_order == 'asc')
     if sort_by and sort_by in df.columns:
         df = df.sort_values(by=sort_by, ascending=ascending)
